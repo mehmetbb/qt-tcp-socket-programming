@@ -15,11 +15,14 @@ MyTcpClient::MyTcpClient(QObject *parent) :
 
     if(socket->waitForConnected())
     {
-        qDebug() << "Connected to Server!";
+        // If client connected to server this message appears
+        qDebug() << "---------------------------\n"
+                    "|| WELCOME TO THE PORTAL ||\n"
+                    "---------------------------\n";
     }
     else
     {
-        qDebug() << "The following error occurred: " << socket->errorString();
+        qDebug() << "Couldn't connect to Server: " << socket->errorString();
         exit(EXIT_FAILURE);
     }
 }
@@ -49,7 +52,7 @@ void MyTcpClient::readSocket()
 
     buffer = buffer.mid(128);
 
-    QString message = QString("Message :: %1").arg(QString::fromStdString(buffer.toStdString()));
+    QString message = QString::fromStdString(buffer.toStdString());
     emit newMessage(message);
 
     analyzeMessage(message);
@@ -58,8 +61,24 @@ void MyTcpClient::readSocket()
 
 void MyTcpClient::analyzeMessage(QString message)
 {
-    if(message!="abc")
-        sendMessage("client >> thanks!");
+    QStringList data = message.split(":");
+
+    if(data[0]=="auth")
+    {
+        if(data[1]=="successful")
+        {
+            qDebug() << "Login successful!\n";
+            //kullanıcı bilgileri gönderilecek
+        }
+        else if(data[1]=="failed")
+        {
+            qDebug() << "FAILED: username or password is wrong!\n";
+            login();
+        }
+    }
+    else
+        qDebug() << "FAILED: message couldnt understand!\n";
+
 }
 
 
@@ -95,14 +114,7 @@ void MyTcpClient::sendMessage(const QString &str)
     {
         if(socket->isOpen())
         {
-            //QString str = ui->lineEdit_message->text();
-
-            //qDebug() << "Please enter the password:";
-
-            //QTextStream qtin(stdin);
-            //QString str = qtin.readLine();  // This is how you read the entire line
-
-            //qDebug() << str;
+            //QString str = ui->lineEdit_message->text()
 
             QDataStream socketStream(socket);
             socketStream.setVersion(QDataStream::Qt_6_2);
@@ -125,22 +137,21 @@ void MyTcpClient::sendMessage(const QString &str)
         qDebug() << "Not connected";
 }
 
-
+// Login to server to receive data
 void MyTcpClient::login()
 {
     if(socket->isOpen())
     {
         QTextStream qtin(stdin);       
 
-        qDebug() << "----------------------";
         qDebug() << "Please enter your username:";
         QString username = qtin.readLine();
 
         qDebug() << "Please enter your password:";
         QString password = qtin.readLine();
 
-        // Concatanate username and password
-        QString userpass{"userpass:"};
+        // Concatanation username and password
+        QString userpass{"userpass:"};  // this is for analyzing message by server
         userpass.reserve(userpass.length() + username.length() + password.length());
         userpass.append(username);
         userpass.append(":");

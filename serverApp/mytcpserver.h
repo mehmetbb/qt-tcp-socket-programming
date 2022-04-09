@@ -33,7 +33,7 @@ public slots:
     void sendMessage(QTcpSocket* socket, QString message);
     void on_pushButton_sendMessage_clicked();
     void analyzeMessage(QString message);
-    //void refreshComboBox();
+    void checkAuthorization(QString user, QString pass);
 
 private:
     QTcpServer *m_server;

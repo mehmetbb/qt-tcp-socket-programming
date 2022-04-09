@@ -74,23 +74,48 @@ void MyTcpServer::readSocket()
 
     buffer = buffer.mid(128);
 
-    QString message = QString("Message :: %1").arg(QString::fromStdString(buffer.toStdString()));
+    //QString message = QString("Message :: %1").arg(QString::fromStdString(buffer.toStdString()));
+    QString message = QString::fromStdString(buffer.toStdString());
+
     emit newMessage(message);
+    //qDebug() << message;
 
     analyzeMessage(message);
-
-
-
 }
 
 
 void MyTcpServer::analyzeMessage(QString message)
 {
-    if(message!="abc")
+    QStringList data = message.split(":");
+
+    if(data[0]=="userpass")
+    {
+        QString user = data[1];
+        QString pass = data[2];
+
+        checkAuthorization(user, pass);
+
+        //foreach (QTcpSocket* socket,connection_set)
+        //{sendMessage(socket, "server >> i got it!");}
+    }
+
+}
+
+
+void MyTcpServer::checkAuthorization(QString user, QString pass)
+{
+    if(user=="mehmet" && pass=="pass123")
     {
         foreach (QTcpSocket* socket,connection_set)
         {
-            sendMessage(socket, "server >> i got it!");
+            sendMessage(socket, "auth:successful");
+        }
+    }
+    else
+    {
+        foreach (QTcpSocket* socket,connection_set)
+        {
+            sendMessage(socket, "auth:failed");
         }
     }
 
