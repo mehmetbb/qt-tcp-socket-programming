@@ -2,6 +2,8 @@
 #include <mytcpclient.h>
 #include <iostream>
 
+// git control
+
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);

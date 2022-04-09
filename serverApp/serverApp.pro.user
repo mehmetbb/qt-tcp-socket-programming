@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 7.0.0, 2022-04-09T14:08:56. -->
+<!-- Written by QtCreator 7.0.0, 2022-04-09T14:23:08. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -240,8 +240,9 @@
     <valuelist type="QVariantList" key="CustomOutputParsers"/>
     <value type="int" key="PE.EnvironmentAspect.Base">2</value>
     <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
-    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:C:/Users/poseidon/Desktop/qt-project/SERVER-SIDE/serverApp/serverApp.pro</value>
-    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/Users/poseidon/Desktop/qt-project/SERVER-SIDE/serverApp/serverApp.pro</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">serverApp2</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4RunConfiguration:C:/Users/poseidon/Desktop/qt-tcp-socket-programming/serverApp/serverApp.pro</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">C:/Users/poseidon/Desktop/qt-tcp-socket-programming/serverApp/serverApp.pro</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
     <value type="bool" key="RunConfiguration.UseLibrarySearchPath">true</value>
