@@ -49,8 +49,17 @@ void MyTcpClient::readSocket()
 
     buffer = buffer.mid(128);
 
-    QString message = QString("%1 :: %2").arg(socket->socketDescriptor()).arg(QString::fromStdString(buffer.toStdString()));
+    QString message = QString("Message :: %1").arg(QString::fromStdString(buffer.toStdString()));
     emit newMessage(message);
+
+    analyzeMessage(message);
+}
+
+
+void MyTcpClient::analyzeMessage(QString message)
+{
+    if(message!="abc")
+        sendMessage("client >> thanks!");
 }
 
 
@@ -134,6 +143,7 @@ void MyTcpClient::login()
         QString userpass{"userpass:"};
         userpass.reserve(userpass.length() + username.length() + password.length());
         userpass.append(username);
+        userpass.append(":");
         userpass.append(password);
 
         sendMessage(userpass);

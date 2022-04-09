@@ -70,18 +70,32 @@ void MyTcpServer::readSocket()
         return;
     }
 
-    QString header = buffer.mid(0,128);
-    QString fileType = header.split(",")[0].split(":")[1];
+    QString header = buffer.mid(0,128);    
 
     buffer = buffer.mid(128);
 
-    QString message = QString("%1 ::xyz %2").arg(socket->socketDescriptor()).arg(QString::fromStdString(buffer.toStdString()));
+    QString message = QString("Message :: %1").arg(QString::fromStdString(buffer.toStdString()));
     emit newMessage(message);
 
-    if(message!="x")
-        sendMessage(socket);
+    analyzeMessage(message);
+
+
 
 }
+
+
+void MyTcpServer::analyzeMessage(QString message)
+{
+    if(message!="abc")
+    {
+        foreach (QTcpSocket* socket,connection_set)
+        {
+            sendMessage(socket, "server >> i got it!");
+        }
+    }
+
+}
+
 
 void MyTcpServer::discardSocket()
 {
@@ -118,13 +132,13 @@ void MyTcpServer::on_pushButton_sendMessage_clicked()
 {
     //QString receiver = ui->comboBox_receiver->currentText();
 
-    QString receiver = "deneme2";
+    QString receiver = "deneme123";
 
     if(receiver=="Broadcast")
     {
         foreach (QTcpSocket* socket,connection_set)
         {
-            sendMessage(socket);
+            sendMessage(socket, receiver);
         }
     }
     else
@@ -133,7 +147,7 @@ void MyTcpServer::on_pushButton_sendMessage_clicked()
         {
             if(socket->socketDescriptor() == receiver.toLongLong())
             {
-                sendMessage(socket);
+                sendMessage(socket, receiver);
                 break;
             }
         }
@@ -142,7 +156,7 @@ void MyTcpServer::on_pushButton_sendMessage_clicked()
 }
 
 
-void MyTcpServer::sendMessage(QTcpSocket* socket)
+void MyTcpServer::sendMessage(QTcpSocket* socket, QString message)
 {
     if(socket)
     {
@@ -150,16 +164,14 @@ void MyTcpServer::sendMessage(QTcpSocket* socket)
         {
             //QString str = ui->lineEdit_message->text();
 
-            QString str{"deneme"};
-
             QDataStream socketStream(socket);
             socketStream.setVersion(QDataStream::Qt_6_2);
 
             QByteArray header;
-            header.prepend(QString("fileType:message,fileName:null,fileSize:%1;").arg(str.size()).toUtf8());
+            header.prepend(QString("fileType:message,fileName:null,fileSize:%1;").arg(message.size()).toUtf8());
             header.resize(128);
 
-            QByteArray byteArray = str.toUtf8();
+            QByteArray byteArray = message.toUtf8();
             byteArray.prepend(header);
 
             socketStream.setVersion(QDataStream::Qt_6_2);

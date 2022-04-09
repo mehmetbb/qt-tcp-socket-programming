@@ -30,8 +30,9 @@ public slots:
     void discardSocket();
     void displayError(QAbstractSocket::SocketError socketError);
     void displayMessage(const QString& str);
-    void sendMessage(QTcpSocket* socket);
+    void sendMessage(QTcpSocket* socket, QString message);
     void on_pushButton_sendMessage_clicked();
+    void analyzeMessage(QString message);
     //void refreshComboBox();
 
 private:

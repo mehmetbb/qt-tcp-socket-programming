@@ -29,6 +29,7 @@ public slots:
     void displayMessage(const QString& str);
     void sendMessage(const QString& str);
     void login();
+    void analyzeMessage(QString message);
 /*
     void connected();
     void disconnected();
