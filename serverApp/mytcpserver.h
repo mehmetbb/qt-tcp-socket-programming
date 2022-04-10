@@ -31,9 +31,10 @@ public slots:
     void displayError(QAbstractSocket::SocketError socketError);
     void displayMessage(const QString& str);
     void sendMessage(QTcpSocket* socket, QString message);
-    void on_pushButton_sendMessage_clicked();
+    //void on_pushButton_sendMessage_clicked();
     void analyzeMessage(QString message);
     void checkAuthorization(QString user, QString pass);
+    void readFile();
 
 private:
     QTcpServer *m_server;

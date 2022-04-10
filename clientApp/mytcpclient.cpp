@@ -67,7 +67,7 @@ void MyTcpClient::analyzeMessage(QString message)
     {
         if(data[1]=="successful")
         {
-            qDebug() << "Login successful!\n"
+            qDebug() << "\nLogin successful!\n\n"
                      << "---------------------------------------------------\n"
                      << "Welcome to" << data[3] << "online operations.\n"
                      << "------------------------------------------------\n"
@@ -76,9 +76,8 @@ void MyTcpClient::analyzeMessage(QString message)
                      << "Balance:    " << data[5] << "\n"
                      << "-----------------------------\n";
 
-            operations(data[2]);
+            operations(data[2],data[5]);
 
-            //kullanıcı bilgileri gönderilecek
         }
         else if(data[1]=="failed")
         {
@@ -92,9 +91,100 @@ void MyTcpClient::analyzeMessage(QString message)
 }
 
 
-void MyTcpClient::operations(QString username)
+void MyTcpClient::operations(QString username, QString balance)
 {
-        qDebug() << "operations bla bla -> " << username;
+    QTextStream qtin(stdin);
+
+    jump1:
+
+    qDebug() << "Which operation you want to perform?\n"
+             << "Press 1 to add money:\n"
+             << "Press 2 to withdraw money:\n"
+             << "Press 3 to transfer money:";
+
+    QString choice = qtin.readLine();
+
+    if(choice=="1")
+    {
+        qDebug() << "Please enter amount:";
+
+        QString amount = qtin.readLine();
+
+        QString operation{"operation:"};  // this is for analyzing message by server
+        operation.append(choice);
+        operation.append(":");
+        operation.append(username);
+        operation.append(":");
+        operation.append(amount);
+
+        sendMessage(operation);
+    }
+    else if(choice=="2")
+    {
+        jump2:
+
+        qDebug() << "Please enter amount:";
+
+        QString amount = qtin.readLine();
+
+        double amountF = amount.toFloat();
+        double balanceF = balance.toFloat();
+
+        while(amountF>balanceF)
+        {
+            qDebug() << "There is no enough balance.";
+            goto jump2;
+        }
+
+        QString operation{"operation:"};  // this is for analyzing message by server
+        operation.append(choice);
+        operation.append(":");
+        operation.append(username);
+        operation.append(":");
+        operation.append(amount);
+
+        sendMessage(operation);
+    }
+    else if(choice=="3")
+    {
+        jump3:
+
+        qDebug() << "Please enter the -customer no- of the person to transfer:";
+        QString customno = qtin.readLine();
+
+        qDebug() << "Please enter the -username- of the person to transfer:";
+        QString userto = qtin.readLine();
+
+        qDebug() << "Please enter amount:";
+        QString amount = qtin.readLine();
+
+        double amountF = amount.toFloat();
+        double balanceF = balance.toFloat();
+
+        while(amountF>balanceF)
+        {
+            qDebug() << "There is no enough balance.";
+            goto jump3;
+        }
+
+        QString operation{"operation:"};  // this is for analyzing message by server
+        operation.append(choice);
+        operation.append(":");
+        operation.append(username);
+        operation.append(":");
+        operation.append(amount);
+        operation.append(":");
+        operation.append(userto);
+        operation.append(":");
+        operation.append(customno);
+
+        sendMessage(operation);
+    }
+    else
+    {
+        qDebug() << "Please enter a valid entry:";
+        goto jump1;
+    }
 
 }
 

@@ -5,6 +5,8 @@
 #include <QDebug>
 #include <QTextStream>
 
+QString customerList[7][5];
+
 MyTcpServer::MyTcpServer(QObject *parent) :
     QObject(parent)
 {
@@ -102,67 +104,77 @@ void MyTcpServer::analyzeMessage(QString message)
         //{sendMessage(socket, "server >> i got it!");}
     }
 
+    //"operation:3:poyrazkarayel:45:aliaydin:1001"
+    else if(data[0]=="operation")
+    {
+        if(data[1]=="1")
+        {
+
+        }
+    }
+
 }
 
 
-void MyTcpServer::checkAuthorization(QString user, QString pass)
+void MyTcpServer::readFile()
 {
-    // Get user info from txt file
-    QFile file("C:\\Users\\poseidon\\Desktop\\customerinfo.txt");
+    QString filename = "C:\\Users\\poseidon\\Desktop\\customerinfo.txt";
 
-    if(!file.open(QFile::ReadOnly | QFile::Text))
+    QFile file(filename);
+    if(!file.open(QFile::ReadOnly |
+                  QFile::Text))
     {
-        qDebug() << " Could not open the file for reading";
+        qDebug() << "Could not open the file for reading";
         return;
     }
 
     QTextStream in(&file);
-    QString myText = in.readAll();  // myText contains all user info
-
+    QString myText = in.readAll(); // myText contains all customer info
     file.close();
 
-    //QString myText = "mehmet:Ziraat Bank:3001:pass123:6900,82\nfatihyenilmez:Ziraat Bank:3002:pass123:5600,17";
-
-    if(!myText.contains(user))
-    {
-        foreach (QTcpSocket* socket,connection_set)
-        {
-            sendMessage(socket, "auth:failed");
-        }
-    }
-
     QStringList dataLine = myText.split("\n");
-    QStringList dataSplitted;
 
-    for(int i=0; i<dataLine.size();i++)
+    for(int i = 0; i < dataLine.size(); i++)
     {
-        if(dataLine[i].contains(user))
+         QStringList data = dataLine[i].split(":");
+
+         for(int j = 0; j < data.size(); j++)
+         {
+             customerList[i][j] = data[j];
+         }
+    }
+}
+
+
+void MyTcpServer::checkAuthorization(QString user, QString pass)
+{ 
+    bool exist = false;
+    for(int k=0;k<7;k++)
+    {
+        if(user==customerList[k][0] && pass==customerList[k][3])
         {
-            dataSplitted = dataLine[i].split(":");
-
-            if(user==dataSplitted[0] && pass==dataSplitted[3])
+            foreach (QTcpSocket* socket,connection_set)
             {
-                foreach (QTcpSocket* socket,connection_set)
-                {
-                    QString authMessage{"auth:successful"};
-                    authMessage.append(":").append(dataSplitted[0])
-                               .append(":").append(dataSplitted[1])
-                               .append(":").append(dataSplitted[2])
-                               .append(":").append(dataSplitted[4]);
+                QString authMessage{"auth:successful"};
+                authMessage.append(":").append(customerList[k][0])
+                           .append(":").append(customerList[k][1])
+                           .append(":").append(customerList[k][2])
+                           .append(":").append(customerList[k][4]);
 
-                    sendMessage(socket, authMessage);
-                }
+                sendMessage(socket, authMessage);
             }
-            else
-            {
-                foreach (QTcpSocket* socket,connection_set)
-                {
-                    sendMessage(socket, "auth:failed");
-                }
-            }
+            exist = true;
             break;
         }
     }
+
+        if(!exist)
+        {
+            foreach (QTcpSocket* socket,connection_set)
+            {
+                sendMessage(socket, "auth:failed");
+            }
+        }  
 }
 
 
@@ -171,10 +183,9 @@ void MyTcpServer::discardSocket()
     QTcpSocket* socket = reinterpret_cast<QTcpSocket*>(sender());
     QSet<QTcpSocket*>::iterator it = connection_set.find(socket);
     if (it != connection_set.end()){
-        qDebug() << "INFO :: A client has left!";
+        qDebug() << "Client has left!";
         connection_set.remove(*it);
     }
-    //refreshComboBox();
 
     socket->deleteLater();
 }
@@ -195,33 +206,6 @@ void MyTcpServer::displayError(QAbstractSocket::SocketError socketError)
             qDebug() << "The following error occurred: " << socket->errorString();
         break;
     }
-}
-
-void MyTcpServer::on_pushButton_sendMessage_clicked()
-{
-    //QString receiver = ui->comboBox_receiver->currentText();
-
-    QString receiver = "deneme123";
-
-    if(receiver=="Broadcast")
-    {
-        foreach (QTcpSocket* socket,connection_set)
-        {
-            sendMessage(socket, receiver);
-        }
-    }
-    else
-    {
-        foreach (QTcpSocket* socket,connection_set)
-        {
-            if(socket->socketDescriptor() == receiver.toLongLong())
-            {
-                sendMessage(socket, receiver);
-                break;
-            }
-        }
-    }
-    //ui->lineEdit_message->clear();
 }
 
 
@@ -253,6 +237,33 @@ void MyTcpServer::sendMessage(QTcpSocket* socket, QString message)
         qDebug() << "Not connected";
 }
 
+/*
+void MyTcpServer::on_pushButton_sendMessage_clicked()
+{
+    QString receiver = "deneme123";
+
+    if(receiver=="Broadcast")
+    {
+        foreach (QTcpSocket* socket,connection_set)
+        {
+            sendMessage(socket, receiver);
+        }
+    }
+    else
+    {
+        foreach (QTcpSocket* socket,connection_set)
+        {
+            if(socket->socketDescriptor() == receiver.toLongLong())
+            {
+                sendMessage(socket, receiver);
+                break;
+            }
+        }
+    }
+    //ui->lineEdit_message->clear();
+}
+
+*/
 
 void MyTcpServer::displayMessage(const QString& str)
 {
@@ -260,3 +271,5 @@ void MyTcpServer::displayMessage(const QString& str)
 
     qDebug() << str;
 }
+
+
