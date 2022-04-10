@@ -67,7 +67,17 @@ void MyTcpClient::analyzeMessage(QString message)
     {
         if(data[1]=="successful")
         {
-            qDebug() << "Login successful!\n";
+            qDebug() << "Login successful!\n"
+                     << "---------------------------------------------------\n"
+                     << "Welcome to" << data[3] << "online operations.\n"
+                     << "------------------------------------------------\n"
+                     << "Username:   " << data[2] << "\n"
+                     << "Customer no:" << data[4] << "\n"
+                     << "Balance:    " << data[5] << "\n"
+                     << "-----------------------------\n";
+
+            operations(data[2]);
+
             //kullanıcı bilgileri gönderilecek
         }
         else if(data[1]=="failed")
@@ -78,6 +88,13 @@ void MyTcpClient::analyzeMessage(QString message)
     }
     else
         qDebug() << "FAILED: message couldnt understand!\n";
+
+}
+
+
+void MyTcpClient::operations(QString username)
+{
+        qDebug() << "operations bla bla -> " << username;
 
 }
 

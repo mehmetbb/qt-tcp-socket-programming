@@ -30,6 +30,7 @@ public slots:
     void sendMessage(const QString& str);
     void login();
     void analyzeMessage(QString message);
+    void operations(QString username);
 /*
     void connected();
     void disconnected();

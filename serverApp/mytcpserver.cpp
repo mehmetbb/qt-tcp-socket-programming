@@ -1,6 +1,9 @@
 #include "mytcpserver.h"
 #include <QDebug>
-#include <iostream>
+#include <QFile>
+#include <QString>
+#include <QDebug>
+#include <QTextStream>
 
 MyTcpServer::MyTcpServer(QObject *parent) :
     QObject(parent)
@@ -12,7 +15,7 @@ MyTcpServer::MyTcpServer(QObject *parent) :
     {
         connect(this, &MyTcpServer::newMessage, this, &MyTcpServer::displayMessage);
         connect(m_server, &QTcpServer::newConnection, this, &MyTcpServer::newConnection);
-        qDebug() << "Server is listening..";
+        qDebug() << "Server is started!";
     }
     else
     {
@@ -70,7 +73,7 @@ void MyTcpServer::readSocket()
         return;
     }
 
-    QString header = buffer.mid(0,128);    
+    //QString header = buffer.mid(0,128);
 
     buffer = buffer.mid(128);
 
@@ -104,14 +107,23 @@ void MyTcpServer::analyzeMessage(QString message)
 
 void MyTcpServer::checkAuthorization(QString user, QString pass)
 {
-    if(user=="mehmet" && pass=="pass123")
+    // Get user info from txt file
+    QFile file("C:\\Users\\poseidon\\Desktop\\customerinfo.txt");
+
+    if(!file.open(QFile::ReadOnly | QFile::Text))
     {
-        foreach (QTcpSocket* socket,connection_set)
-        {
-            sendMessage(socket, "auth:successful");
-        }
+        qDebug() << " Could not open the file for reading";
+        return;
     }
-    else
+
+    QTextStream in(&file);
+    QString myText = in.readAll();  // myText contains all user info
+
+    file.close();
+
+    //QString myText = "mehmet:Ziraat Bank:3001:pass123:6900,82\nfatihyenilmez:Ziraat Bank:3002:pass123:5600,17";
+
+    if(!myText.contains(user))
     {
         foreach (QTcpSocket* socket,connection_set)
         {
@@ -119,6 +131,38 @@ void MyTcpServer::checkAuthorization(QString user, QString pass)
         }
     }
 
+    QStringList dataLine = myText.split("\n");
+    QStringList dataSplitted;
+
+    for(int i=0; i<dataLine.size();i++)
+    {
+        if(dataLine[i].contains(user))
+        {
+            dataSplitted = dataLine[i].split(":");
+
+            if(user==dataSplitted[0] && pass==dataSplitted[3])
+            {
+                foreach (QTcpSocket* socket,connection_set)
+                {
+                    QString authMessage{"auth:successful"};
+                    authMessage.append(":").append(dataSplitted[0])
+                               .append(":").append(dataSplitted[1])
+                               .append(":").append(dataSplitted[2])
+                               .append(":").append(dataSplitted[4]);
+
+                    sendMessage(socket, authMessage);
+                }
+            }
+            else
+            {
+                foreach (QTcpSocket* socket,connection_set)
+                {
+                    sendMessage(socket, "auth:failed");
+                }
+            }
+            break;
+        }
+    }
 }
 
 
