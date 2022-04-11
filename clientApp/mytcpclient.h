@@ -10,7 +10,6 @@
 #include <QStandardPaths>
 #include <QTcpSocket>
 
-//QObject??
 class MyTcpClient : public QObject
 {
     Q_OBJECT
@@ -31,14 +30,6 @@ public slots:
     void login();
     void analyzeMessage(QString message);
     void operations(QString username, QString balance);
-/*
-    void connected();
-    void disconnected();
-    void readyRead();
-    void taskResult(qintptr number);
-    void sendMessage(const QString &text);
-    void connectToServer();
-*/
 
 private:
     QTcpSocket *socket;

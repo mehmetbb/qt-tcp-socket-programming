@@ -31,7 +31,7 @@ public slots:
     void analyzeMessage(QString message);
     void checkAuthorization(QString user, QString pass);
     void readFile();
-    void writeFile();
+    void writeFile(QString message);
 
 private:
     QTcpServer *m_server;

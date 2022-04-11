@@ -27,12 +27,15 @@ MyTcpClient::MyTcpClient(QObject *parent) :
     }
 }
 
+// destructor
 MyTcpClient::~MyTcpClient()
 {
     if(socket->isOpen())
         socket->close();
 }
 
+// The client listens to the channel
+// and catches when new messages arrive
 void MyTcpClient::readSocket()
 {
     QByteArray buffer;
@@ -53,16 +56,19 @@ void MyTcpClient::readSocket()
     buffer = buffer.mid(128);
 
     QString message = QString::fromStdString(buffer.toStdString());
-    emit newMessage(message);
+    //emit newMessage(message);  *for trial*
 
+    // to make the incoming message understandable
     analyzeMessage(message);
 }
 
-
+// Analysis mechanism is used to understand
+// messages between server and client.
 void MyTcpClient::analyzeMessage(QString message)
 {
     QStringList data = message.split(":");
 
+    // authorization check
     if(data[0]=="auth")
     {
         if(data[1]=="successful")
@@ -85,28 +91,58 @@ void MyTcpClient::analyzeMessage(QString message)
             login();
         }
     }
+    // if error occurs when transfer money
+    else if(data[0]=="transfererror")
+    {
+        if(data[1]=="notexist")
+        {
+            qDebug() << "User" << data[2] << "does not exist!";
+
+            operations(data[3],data[4]);
+
+        }
+        else if(data[1]=="wrongnumber")
+        {
+            qDebug() << "There is a mismatch in the customer name and number!";
+
+            operations(data[2],data[3]);
+        }
+    }
+    // operation successful message
+    else if(data[0]=="completed")
+    {
+        qDebug() << "\nOperation successful!\n"
+                 << "-----------------------------\n"
+                 << "Username:   " << data[1] << "\n"
+                 << "Balance:    " << data[2] << "\n"
+                 << "-----------------------------\n";
+
+        operations(data[1],data[2]);
+    }
     else
         qDebug() << "FAILED: message couldnt understand!\n";
 
 }
 
-
+// selected operations are evaluated
 void MyTcpClient::operations(QString username, QString balance)
 {
+    operation:
+
     QTextStream qtin(stdin);
 
-    jump1:
-
     qDebug() << "Which operation you want to perform?\n"
-             << "Press 1 to add money:\n"
-             << "Press 2 to withdraw money:\n"
-             << "Press 3 to transfer money:";
+             << "Enter 1 to add money:\n"
+             << "Enter 2 to withdraw money:\n"
+             << "Enter 3 to transfer money:\n"
+             << "Enter 4 to sign out:";
 
     QString choice = qtin.readLine();
 
+    // add money
     if(choice=="1")
     {
-        qDebug() << "Please enter amount:";
+        qDebug() << "Please enter amount to add:";
 
         QString amount = qtin.readLine();
 
@@ -119,11 +155,12 @@ void MyTcpClient::operations(QString username, QString balance)
 
         sendMessage(operation);
     }
+    // withdraw money
     else if(choice=="2")
     {
-        jump2:
+        withdraw:
 
-        qDebug() << "Please enter amount:";
+        qDebug() << "Please enter amount to withdraw:";
 
         QString amount = qtin.readLine();
 
@@ -132,8 +169,8 @@ void MyTcpClient::operations(QString username, QString balance)
 
         while(amountF>balanceF)
         {
-            qDebug() << "There is no enough balance.";
-            goto jump2;
+            qDebug() << "\nThere is no enough balance.\n";
+            goto withdraw;
         }
 
         QString operation{"operation:"};  // this is for analyzing message by server
@@ -145,6 +182,7 @@ void MyTcpClient::operations(QString username, QString balance)
 
         sendMessage(operation);
     }
+    // transfer money
     else if(choice=="3")
     {
         qDebug() << "Please enter the -customer no- of the person to transfer:";
@@ -153,17 +191,20 @@ void MyTcpClient::operations(QString username, QString balance)
         qDebug() << "Please enter the -username- of the person to transfer:";
         QString userto = qtin.readLine();
 
-        jump3:
-        qDebug() << "Please enter amount:";
+        transfer:
+
+        qDebug() << "Please enter amount to transfer:";
         QString amount = qtin.readLine();
 
+        // to compare variables we need to convert to float
         double amountF = amount.toFloat();
         double balanceF = balance.toFloat();
 
         while(amountF>balanceF)
         {
             qDebug() << "There is no enough balance.";
-            goto jump3;
+            qDebug() << "Current balance: " << balanceF << "\n";
+            goto transfer;
         }
 
         QString operation{"operation:"};  // this is for analyzing message by server
@@ -179,10 +220,15 @@ void MyTcpClient::operations(QString username, QString balance)
 
         sendMessage(operation);
     }
+    // sign out
+    else if(choice=="4")
+    {
+        socket->close();
+    }
     else
     {
         qDebug() << "Please enter a valid entry:";
-        goto jump1;
+        goto operation;
     }
 
 }
@@ -196,6 +242,8 @@ void MyTcpClient::discardSocket()
     qDebug() << "Disconnected!";
 }
 
+
+// error control
 void MyTcpClient::displayError(QAbstractSocket::SocketError socketError)
 {
     switch (socketError) {
@@ -214,14 +262,13 @@ void MyTcpClient::displayError(QAbstractSocket::SocketError socketError)
 }
 
 
+// send message to server
 void MyTcpClient::sendMessage(const QString &str)
 {
     if(socket)
     {
         if(socket->isOpen())
         {
-            //QString str = ui->lineEdit_message->text()
-
             QDataStream socketStream(socket);
             socketStream.setVersion(QDataStream::Qt_6_2);
 
@@ -233,17 +280,15 @@ void MyTcpClient::sendMessage(const QString &str)
             byteArray.prepend(header);
 
             socketStream << byteArray;
-
-            //ui->lineEdit_message->clear();
         }
         else
-            qDebug() << "Socket doesn't seem to be opened";
+            qDebug() << "Socket could not be opened!";
     }
     else
-        qDebug() << "Not connected";
+        qDebug() << "Not connected!";
 }
 
-// Login to server to receive data
+// login to server
 void MyTcpClient::login()
 {
     if(socket->isOpen())
@@ -256,8 +301,9 @@ void MyTcpClient::login()
         qDebug() << "Please enter your password:";
         QString password = qtin.readLine();
 
-        // Concatanation username and password
-        QString userpass{"userpass:"};  // this is for analyzing message by server
+        // concatanation username and password
+        // this is for analyzing message by server
+        QString userpass{"userpass:"};
         userpass.reserve(userpass.length() + username.length() + password.length());
         userpass.append(username);
         userpass.append(":");
@@ -268,129 +314,13 @@ void MyTcpClient::login()
     }
     else
     {
-        qDebug() << "Socket doesn't seem to be opened";
+        qDebug() << "Socket could not be opened!";
     }
 }
-
 
 
 void MyTcpClient::displayMessage(const QString& str)
 {
-    //ui->textBrowser_receivedMessages->append(str);
-
     qDebug() << str;
 }
 
-
-/*
-
-void MyTcpClient::setSocket(qintptr descriptor)
-{
-    socket = new QTcpSocket(this);
-
-    connect(socket, SIGNAL(connected()), this, SLOT(connected()));
-    connect(socket, SIGNAL(disconnected()), this, SLOT(disconnected()));
-    connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
-
-    socket->setSocketDescriptor(descriptor);
-
-    qDebug() << "Client connected to x..";
-}
-
-
-void MyTcpClient::connected()
-{
-    qDebug() << "Client connected to event..";
-}
-
-
-void MyTcpClient::disconnected()
-{
-    qDebug() << "Client disconnected from y..";
-}
-
-
-void MyTcpClient::readyRead()
-{
-    qDebug() << socket->readAll();
-
-    qDebug() << "Please enter the password:";
-
-    QTextStream qtin(stdin);
-    QString password = qtin.readLine();  // This is how you read the entire line
-
-    qDebug() << password;
-
-    socket->write("heyyy");
-    socket->flush();
-}
-
-
-
-
-void MyTcpClient::connectToServer()
-{
-    qDebug() << "------------------------------";
-    qDebug() << "Please enter your username:";
-
-    QTextStream qtin(stdin);
-    QString username = qtin.readLine();  // This is how you read the entire line
-
-    qDebug() << "Username: " << username;
-
-    QDataStream socketStream(socket);
-    socketStream.setVersion(QDataStream::Qt_6_2);
-
-    socketStream << username;
-
-    if(socket->isOpen())
-    {
-        QString str = "123dfdfdgdgd";
-
-        QDataStream socketStream(socket);
-        socketStream.setVersion(QDataStream::Qt_6_2);
-
-        socketStream << str;
-
-        socket->write("username");
-        socket->flush();
-
-        qDebug() << "sdf???";
-
-        QDataStream clientStream(socket);
-        clientStream.setVersion(QDataStream::Qt_6_2);
-
-        qDebug() << "adm";
-        clientStream << str;
-    }
-    else
-    {
-        qDebug() << "Socket doesn't seem to be opened";
-    }
-}
-
-void MyTcpClient::setSocket(qintptr descriptor)
-{
-    // make a new socket
-    socket = new QTcpSocket(this);
-
-    qDebug() << "A new socket created!";
-
-    connect(socket, SIGNAL(connected()), this, SLOT(connected()));
-    connect(socket, SIGNAL(disconnected()), this, SLOT(disconnected()));
-    connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
-
-    socket->setSocketDescriptor(descriptor);
-
-    //qDebug() << "Client connected at " << descriptor;
-
-    socket->connectToHost(QHostAddress("127.0.0.1"),9999);
-
-        if(socket->waitForConnected())
-            qDebug() << "Connected to Server";
-        else{
-            qDebug() << "The following error occurred: " << socket->errorString();
-        }
-}
-
-*/

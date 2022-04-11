@@ -12,9 +12,11 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    //Server started
+
+    // Create server object
     MyTcpServer server;
 
+    // check and read file
     server.readFile();
 
     return a.exec();
