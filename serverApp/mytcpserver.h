@@ -20,21 +20,18 @@ public:
 signals:
     void newMessage(QString);
 
-//protected:
-    //void incomingConnection(qintptr socketDescriptor);
-
 public slots:
     void newConnection();
     void appendToSocketList(QTcpSocket* socket);
     void readSocket();
     void discardSocket();
     void displayError(QAbstractSocket::SocketError socketError);
-    void displayMessage(const QString& str);
-    void sendMessage(QTcpSocket* socket, QString message);
-    //void on_pushButton_sendMessage_clicked();
+    void displayMessage(QString str);
+    void sendMessage(QTcpSocket* socket, QString message);    
     void analyzeMessage(QString message);
     void checkAuthorization(QString user, QString pass);
     void readFile();
+    void writeFile();
 
 private:
     QTcpServer *m_server;

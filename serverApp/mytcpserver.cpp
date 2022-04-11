@@ -46,15 +46,17 @@ void MyTcpServer::newConnection()
         appendToSocketList(m_server->nextPendingConnection());
 }
 
+
 void MyTcpServer::appendToSocketList(QTcpSocket* socket)
 {
     connection_set.insert(socket);
     connect(socket, &QTcpSocket::readyRead, this, &MyTcpServer::readSocket);
     connect(socket, &QTcpSocket::disconnected, this, &MyTcpServer::discardSocket);
     connect(socket, &QAbstractSocket::errorOccurred, this, &MyTcpServer::displayError);
-    //ui->comboBox_receiver->addItem(QString::number(socket->socketDescriptor()));
-    qDebug() << "INFO :: Client connected!";
+
+    qDebug() << "Client connected!";
 }
+
 
 void MyTcpServer::readSocket()
 {
@@ -70,7 +72,7 @@ void MyTcpServer::readSocket()
 
     if(!socketStream.commitTransaction())
     {
-        QString message = QString("%1 :: Waiting for more data to come..").arg(socket->socketDescriptor());
+        QString message = "Waiting for data..";
         emit newMessage(message);
         return;
     }
@@ -88,7 +90,8 @@ void MyTcpServer::readSocket()
     analyzeMessage(message);
 }
 
-
+// Analysis mechanism is used to understand
+// messages between server and client.
 void MyTcpServer::analyzeMessage(QString message)
 {
     QStringList data = message.split(":");
@@ -99,17 +102,88 @@ void MyTcpServer::analyzeMessage(QString message)
         QString pass = data[2];
 
         checkAuthorization(user, pass);
-
-        //foreach (QTcpSocket* socket,connection_set)
-        //{sendMessage(socket, "server >> i got it!");}
     }
-
-    //"operation:3:poyrazkarayel:45:aliaydin:1001"
-    else if(data[0]=="operation")
+    // Add money
+    else if(data[0]=="operation" && data[1]=="1")
     {
-        if(data[1]=="1")
+        for(int i=0;i<7;i++)
         {
+            if(data[2]==customerList[i][0])
+            {
+                double currentBalance = customerList[i][4].toFloat();
+                double addMoney = data[3].toFloat();
 
+                currentBalance += addMoney;
+
+                customerList[i][4] = QString::number(currentBalance);
+
+                writeFile();
+
+                break;
+            }
+        }
+    }
+    // Withdraw money
+    else if(data[0]=="operation" && data[1]=="2")
+    {
+        for(int i=0;i<7;i++)
+        {
+            if(data[2]==customerList[i][0])
+            {
+                double currentBalance = customerList[i][4].toFloat();
+                double getMoney = data[3].toFloat();
+
+                currentBalance -= getMoney;
+
+                customerList[i][4] = QString::number(currentBalance);
+
+                writeFile();
+
+                break;
+            }
+        }
+    }
+    //"operation:3:poyrazkarayel:45:aliaydin:1001"
+    // Transfer money
+    else if(data[0]=="operation" && data[1]=="3")
+    {
+        // böyle bir müşteri var mı nosu doğru mu
+
+        QString bankTo;
+        QString bankFrom;
+        double bankCut = 6;
+
+        for(int i=0;i<7;i++)
+        {
+            if(data[4]==customerList[i][0])
+            {
+                double currentBalance = customerList[i][4].toFloat();
+                double addMoney = data[3].toFloat();
+
+                currentBalance += addMoney;
+
+                customerList[i][4] = QString::number(currentBalance);
+
+                bankTo = customerList[i][1];
+
+            }
+            else if(data[2]==customerList[i][0])
+            {
+                double currentBalance = customerList[i][4].toFloat();
+                double getMoney = data[3].toFloat();
+
+                currentBalance -= getMoney;
+
+                bankFrom = customerList[i][1];
+
+                // When banks are different
+                if(bankFrom!=bankTo)
+                    currentBalance -= bankCut;
+
+                customerList[i][4] = QString::number(currentBalance);
+
+                writeFile();
+            }
         }
     }
 
@@ -132,6 +206,8 @@ void MyTcpServer::readFile()
     QString myText = in.readAll(); // myText contains all customer info
     file.close();
 
+    qDebug() << myText;
+
     QStringList dataLine = myText.split("\n");
 
     for(int i = 0; i < dataLine.size(); i++)
@@ -143,6 +219,60 @@ void MyTcpServer::readFile()
              customerList[i][j] = data[j];
          }
     }
+}
+
+
+void MyTcpServer::writeFile()
+{
+
+    qDebug() << "write file";
+
+
+    QString temp = "";
+
+    for(int i=0;i<7;i++)
+    {
+        for(int j=0;j<5;j++)
+        {
+            temp.append(customerList[i][j]);
+
+            if(j!=4)
+            {
+                temp.append(":");
+            }
+        }
+        if(i!=6)
+        {
+            temp.append("\n");
+        }
+    }
+
+    qDebug() << "Temp: " << temp;
+
+
+/*
+
+
+    QString filename = "C:\\Users\\poseidon\\Desktop\\customerinfo.txt";
+
+    QFile file(filename);
+    // Trying to open in WriteOnly and Text mode
+    if(!file.open(QFile::WriteOnly |
+                  QFile::Text))
+    {
+        qDebug() << " Could not open file for writing";
+        return;
+    }
+
+    // To write text, we use operator<<(),
+    // which is overloaded to take
+    // a QTextStream on the left
+    // and data types (including QString) on the right
+
+    QTextStream out(&file);
+    out << "QFile\nTuto\nrial";
+    file.flush();
+    file.close(); */
 }
 
 
@@ -190,6 +320,7 @@ void MyTcpServer::discardSocket()
     socket->deleteLater();
 }
 
+
 void MyTcpServer::displayError(QAbstractSocket::SocketError socketError)
 {
     switch (socketError) {
@@ -215,8 +346,6 @@ void MyTcpServer::sendMessage(QTcpSocket* socket, QString message)
     {
         if(socket->isOpen())
         {
-            //QString str = ui->lineEdit_message->text();
-
             QDataStream socketStream(socket);
             socketStream.setVersion(QDataStream::Qt_6_2);
 
@@ -237,38 +366,9 @@ void MyTcpServer::sendMessage(QTcpSocket* socket, QString message)
         qDebug() << "Not connected";
 }
 
-/*
-void MyTcpServer::on_pushButton_sendMessage_clicked()
+
+void MyTcpServer::displayMessage(QString str)
 {
-    QString receiver = "deneme123";
-
-    if(receiver=="Broadcast")
-    {
-        foreach (QTcpSocket* socket,connection_set)
-        {
-            sendMessage(socket, receiver);
-        }
-    }
-    else
-    {
-        foreach (QTcpSocket* socket,connection_set)
-        {
-            if(socket->socketDescriptor() == receiver.toLongLong())
-            {
-                sendMessage(socket, receiver);
-                break;
-            }
-        }
-    }
-    //ui->lineEdit_message->clear();
-}
-
-*/
-
-void MyTcpServer::displayMessage(const QString& str)
-{
-    //ui->textBrowser_receivedMessages->append(str);
-
     qDebug() << str;
 }
 

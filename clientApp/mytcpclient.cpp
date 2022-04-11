@@ -147,14 +147,13 @@ void MyTcpClient::operations(QString username, QString balance)
     }
     else if(choice=="3")
     {
-        jump3:
-
         qDebug() << "Please enter the -customer no- of the person to transfer:";
         QString customno = qtin.readLine();
 
         qDebug() << "Please enter the -username- of the person to transfer:";
         QString userto = qtin.readLine();
 
+        jump3:
         qDebug() << "Please enter amount:";
         QString amount = qtin.readLine();
 
