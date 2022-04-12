@@ -23,11 +23,11 @@ MyTcpServer::MyTcpServer(QObject *parent) :
     {
         connect(this, &MyTcpServer::newMessage, this, &MyTcpServer::displayMessage);
         connect(m_server, &QTcpServer::newConnection, this, &MyTcpServer::newConnection);
-        qDebug() << "Server is started!\n";
+        qDebug() << "*** Server started!\n";
     }
     else
     {
-        qDebug() << "Server is not started!" << m_server->errorString();
+        qDebug() << "*** Server not started!" << m_server->errorString();
         exit(EXIT_FAILURE);
     }
 }
@@ -60,7 +60,7 @@ void MyTcpServer::appendToSocketList(QTcpSocket* socket)
     connect(socket, &QTcpSocket::disconnected, this, &MyTcpServer::discardSocket);
     connect(socket, &QAbstractSocket::errorOccurred, this, &MyTcpServer::displayError);
 
-    qDebug() << "Client connected!";
+    qDebug() << "*** Client connected!";
 }
 
 // The server listens to the channel
@@ -79,7 +79,7 @@ void MyTcpServer::readSocket()
 
     if(!socketStream.commitTransaction())
     {
-        QString message = "Waiting for data..";
+        QString message = "*** Waiting for data..";
         emit newMessage(message);
         return;
     }
@@ -205,7 +205,7 @@ void MyTcpServer::analyzeMessage(QString message)
                 error.append(":");
                 error.append(data[2]);
                 error.append(":");
-                error.append(data[3]);
+                error.append(data[6]);
                 sendMessage(socket, error);
             }
         }
@@ -222,7 +222,7 @@ void MyTcpServer::analyzeMessage(QString message)
 
             for(int i=0;i<7;i++)
             {
-                if(data[4]==customerList[i][0])
+                if(customerList[i][0]==data[4])
                 {
                     currentBalance = customerList[i][4].toFloat();
                     addMoney = data[3].toFloat();
@@ -234,7 +234,7 @@ void MyTcpServer::analyzeMessage(QString message)
                     bankTo = customerList[i][1];
 
                 }
-                else if(data[2]==customerList[i][0])
+                else if(customerList[i][0]==data[2])
                 {
                     currentBalance = customerList[i][4].toFloat();
                     getMoney = data[3].toFloat();
@@ -267,7 +267,7 @@ void MyTcpServer::analyzeMessage(QString message)
 
     }
     else
-        qDebug() << "FAILED: message couldnt understand!\n";
+        qDebug() << "*** FAILED: message could not understand!\n";
 }
 
 
@@ -287,8 +287,8 @@ void MyTcpServer::readFile()
     if(!file.open(QFile::ReadOnly |
                   QFile::Text))
     {
-        qDebug() << "\nFile can not found!\n"
-                    "Please enter the valid directory:";
+        qDebug() << "\n*** File can not found!\n"
+                    "*** Please enter the valid directory:\n";
         goto start;
     }
 
@@ -320,14 +320,15 @@ void MyTcpServer::readFile()
     }
 
     qDebug() << "\nOn the client side, you can use information above.\n"
-                "Client can be started!";
+                "This template is for ease of use. Changes can be checked on the client side.\n\n"
+                "*** Data received. Client can be started!";
 
 }
 
 // applying changes to the file
 void MyTcpServer::writeFile(QString message)
 {
-    qDebug() << "Writing to db..";
+    qDebug() << "*** Writing to db..";
 
     QString temp = "";
 
@@ -356,7 +357,7 @@ void MyTcpServer::writeFile(QString message)
     if(!file.open(QFile::WriteOnly |
                   QFile::Text))
     {
-        qDebug() << " Could not open file for writing!";
+        qDebug() << "*** Could not open file for writing!";
         return;
     }
 
@@ -365,10 +366,10 @@ void MyTcpServer::writeFile(QString message)
     file.flush();
     file.close();
 
-    qDebug() << "Completed!";
+    qDebug() << "*** Completed!";
 }
 
-
+// authorization check
 void MyTcpServer::checkAuthorization(QString user, QString pass)
 { 
     bool exist = false;
@@ -384,6 +385,8 @@ void MyTcpServer::checkAuthorization(QString user, QString pass)
                            .append(":").append(customerList[k][2])
                            .append(":").append(customerList[k][4]);
 
+                qDebug() << "*** Login successful!";
+
                 sendMessage(socket, authMessage);
             }
             exist = true;
@@ -395,44 +398,47 @@ void MyTcpServer::checkAuthorization(QString user, QString pass)
         {
             foreach (QTcpSocket* socket,connection_set)
             {
+                qDebug() << "*** Login failed!";
+
                 sendMessage(socket, "auth:failed");
             }
         }  
 }
 
-
+// when the connection is lost
 void MyTcpServer::discardSocket()
 {
     QTcpSocket* socket = reinterpret_cast<QTcpSocket*>(sender());
     QSet<QTcpSocket*>::iterator it = connection_set.find(socket);
     if (it != connection_set.end()){
-        qDebug() << "Client has left!";
+        qDebug() << "*** Client has left!";
         connection_set.remove(*it);
     }
 
     socket->deleteLater();
 }
 
-
+// error messages
 void MyTcpServer::displayError(QAbstractSocket::SocketError socketError)
 {
     switch (socketError) {
         case QAbstractSocket::RemoteHostClosedError:
         break;
         case QAbstractSocket::HostNotFoundError:
-            qDebug() << "The host was not found.";
+            qDebug() << "*** The host was not found.";
         break;
         case QAbstractSocket::ConnectionRefusedError:
-            qDebug() << "The connection was refused.";
+            qDebug() << "*** The connection was refused.";
         break;
         default:
             QTcpSocket* socket = qobject_cast<QTcpSocket*>(sender());
-            qDebug() << "The following error occurred: " << socket->errorString();
+            qDebug() << "*** The following error occurred: " << socket->errorString();
         break;
     }
 }
 
 
+// send message to client
 void MyTcpServer::sendMessage(QTcpSocket* socket, QString message)
 {
     if(socket)
@@ -453,10 +459,10 @@ void MyTcpServer::sendMessage(QTcpSocket* socket, QString message)
             socketStream << byteArray;
         }
         else
-            qDebug() << "Socket doesn't seem to be opened";
+            qDebug() << "*** Socket could not be opened";
     }
     else
-        qDebug() << "Not connected";
+        qDebug() << "*** Not connected";
 }
 
 
