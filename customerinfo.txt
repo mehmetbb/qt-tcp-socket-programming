@@ -1,0 +1,7 @@
+aliaydin:Akbank:1001:pass123:1108.99
+aysedemir:Akbank:1002:pass123:4300
+zeynepkaya:Garanti Bank:2001:pass123:7536
+mustafayavuz:Garanti Bank:2002:pass123:2330.95
+esrasahin:Garanti Bank:2003:pass123:11849
+poyrazkarayel:Ziraat Bank:3001:pass123:6900.82
+fatihyenilmez:Ziraat Bank:3002:pass123:5700.17
