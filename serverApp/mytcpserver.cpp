@@ -185,7 +185,7 @@ void MyTcpServer::analyzeMessage(QString message)
                         QString error{"transfererror:wrongnumber:"};
                         error.append(data[2]);
                         error.append(":");
-                        error.append(data[3]);
+                        error.append(data[6]);
                         sendMessage(socket, error);
                     }
                 }
