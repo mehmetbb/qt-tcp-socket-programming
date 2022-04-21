@@ -4,6 +4,7 @@
 MyTcpClient::MyTcpClient(QObject *parent) :
     QObject(parent)
 {
+    // new socket created
     socket = new QTcpSocket(this);
 
     connect(this, &MyTcpClient::newMessage, this, &MyTcpClient::displayMessage);
@@ -22,7 +23,7 @@ MyTcpClient::MyTcpClient(QObject *parent) :
     }
     else
     {
-        qDebug() << "*** Couldn't connect to Server: " << socket->errorString();
+        qDebug() << ">> Couldn't connect to Server: " << socket->errorString();
         exit(EXIT_FAILURE);
     }
 }
@@ -33,6 +34,7 @@ MyTcpClient::~MyTcpClient()
     if(socket->isOpen())
         socket->close();
 }
+
 
 // The client listens to the channel
 // and catches when new messages arrive
@@ -48,7 +50,7 @@ void MyTcpClient::readSocket()
 
     if(!socketStream.commitTransaction())
     {
-        QString message = "*** Waiting for data..";
+        QString message = ">> Waiting for data..";
         emit newMessage(message);
         return;
     }
@@ -56,25 +58,29 @@ void MyTcpClient::readSocket()
     buffer = buffer.mid(128);
 
     QString message = QString::fromStdString(buffer.toStdString());
-    //emit newMessage(message);  *for trial*
+
+    //emit newMessage(message);  //to suppress the message
 
     // to make the incoming message understandable
     analyzeMessage(message);
 }
+
 
 // Analysis mechanism is used to understand
 // messages between server and client.
 void MyTcpClient::analyzeMessage(QString message)
 {
     QStringList data = message.split(":");
+    QTextStream qtin(stdin);
+
+    int dataSize = data.size();
 
     // authorization check
     if(data[0]=="auth")
     {
         if(data[1]=="successful")
         {
-            qDebug() << "\n*** Login successful!\n\n"
-                     << "---------------------------------------------------\n"
+            qDebug() << "\n---------------------------------------------------\n"
                      << "Welcome to" << data[3] << "online operations.\n"
                      << "------------------------------------------------\n"
                      << "Username:   " << data[2] << "\n"
@@ -82,12 +88,17 @@ void MyTcpClient::analyzeMessage(QString message)
                      << "Balance:    " << data[5] << "\n"
                      << "-----------------------------\n";
 
-            operations(data[2],data[5]);
+            QString forOperation = data[2].append(":").append(data[5])
+                                          .append(":").append(data[3])
+                                          .append(":").append(data[4]);
+
+
+            operations(forOperation);
 
         }
         else if(data[1]=="failed")
         {
-            qDebug() << "\n*** FAILED: username or password is wrong!\n";
+            qDebug() << "\n>> FAILED: username or password is wrong!\n";
             login();
         }
     }
@@ -96,47 +107,111 @@ void MyTcpClient::analyzeMessage(QString message)
     {
         if(data[1]=="notexist")
         {
-            qDebug() << "\n*** User" << data[2] << "does not exist!\n";
+            qDebug() << "\n>> User" << data[6] << "does not exist!\n";
 
-            operations(data[3],data[4]);
+            notexist:
+            qDebug() << "Press 0 to go back:";
+
+            QString choice = qtin.readLine();
+
+            if(choice=="0")
+            {
+                QString back = "auth:successful:";
+
+                back.append(data[2]).append(":")  // username
+                    .append(data[3]).append(":")  // bank
+                    .append(data[4]).append(":")  // customer no
+                    .append(data[5]);             // balance
+
+                analyzeMessage(back);
+
+                return;
+            }
+            else
+            {
+                qDebug() << "\nPlease enter a valid entry.";
+                goto notexist;
+            }
 
         }
         else if(data[1]=="wrongnumber")
         {
-            qDebug() << "\n*** There is a mismatch in the customer name and number!\n";
+            qDebug() << "\n>> There is a mismatch in the customer name and number!\n";
+            wrongnum:
+            qDebug() << "Press 0 to go back:";
 
-            operations(data[2],data[3]);
+            QString choice = qtin.readLine();
+
+            if(choice=="0")
+            {
+                QString back = "auth:successful:";
+
+                back.append(data[2]).append(":")  // username
+                    .append(data[3]).append(":")  // bank
+                    .append(data[4]).append(":")  // customer no
+                    .append(data[5]);             // balance
+
+                analyzeMessage(back);
+
+                return;
+            }
+            else
+            {
+                qDebug() << "\nPlease enter a valid entry.";
+                goto wrongnum;
+            }
         }
     }
     // operation successful message
     else if(data[0]=="completed")
     {
-        qDebug() << "\n*** Operation successful!\n"
-                 << "-----------------------------\n"
-                 << "Username:   " << data[1] << "\n"
-                 << "Balance:    " << data[2] << "\n"
-                 << "-----------------------------\n";
+        qDebug() << "\n>> Operation successful!";
 
-        operations(data[1],data[2]);
+        if(dataSize==6)
+            qDebug() << "\n>> 6 TL deduction fee is charged between different banks.";
+
+        goback:
+        qDebug() << "\nPress 0 to go back:";
+
+        QString choice = qtin.readLine();
+
+        if(choice=="0")
+        {
+            QString back = "auth:successful:";
+
+            back.append(data[1]).append(":")
+                .append(data[2]).append(":")
+                .append(data[3]).append(":")
+                .append(data[4]);
+
+            analyzeMessage(back);
+
+            return;
+        }
+        else
+        {
+            qDebug() << "\nPlease enter a valid entry.";
+            goto goback;
+        }
     }
     else
-        qDebug() << "*** FAILED: message could not understand!\n";
+        qDebug() << ">> FAILED: message error! Please restart the application.\n";
 
 }
 
-// selected operations are evaluated
-void MyTcpClient::operations(QString username, QString balance)
+// to select operation
+void MyTcpClient::operations(QString userData)
 {
-    operation:
+    QStringList strList = userData.split(":");
 
     QTextStream qtin(stdin);
 
     qDebug() << "Which operation you want to perform?\n"
-             << "Enter 1 to deposit money:\n"
-             << "Enter 2 to withdraw money:\n"
-             << "Enter 3 to transfer money:\n"
-             << "Enter 4 to sign out:\n"
-             << "Enter 5 to disconnect:";
+             << "Press 1 to deposit money:\n"
+             << "Press 2 to withdraw money:\n"
+             << "Press 3 to transfer money:\n"
+             << "Press 4 to sign out:\n"
+             << "Press 5 to disconnect:";
 
     QString choice = qtin.readLine();
 
@@ -150,7 +225,7 @@ void MyTcpClient::operations(QString username, QString balance)
         QString operation{"operation:"};  // this is for analyzing message by server
         operation.append(choice);
         operation.append(":");
-        operation.append(username);
+        operation.append(strList[0]);  // username
         operation.append(":");
         operation.append(amount);
 
@@ -159,83 +234,192 @@ void MyTcpClient::operations(QString username, QString balance)
     // withdraw money
     else if(choice=="2")
     {
+        positive:
+
         qDebug() << "\nPlease enter amount to withdraw:";
 
         QString amount = qtin.readLine();
 
         double amountF = amount.toFloat();
-        double balanceF = balance.toFloat();
+        double balanceF = strList[1].toFloat();
 
-        while(amountF>balanceF)
+
+        if(amountF<=0)
         {
-            qDebug() << "\n*** There is no enough balance.\n"
-                        "Current balance: " << balance << "\n";
-            goto operation;
+            qDebug() << "\n>> Input should be positive.";
+            goto positive;
         }
 
-        QString operation{"operation:"};  // this is for analyzing message by server
-        operation.append(choice);
-        operation.append(":");
-        operation.append(username);
-        operation.append(":");
-        operation.append(amount);
 
-        sendMessage(operation);
+        if(amountF>balanceF)
+        {
+            qDebug() << "\n>> There is no enough balance."
+                     << "\nPress 0 to go back:";
+
+            wrongchoice:
+            QString choiceBack = qtin.readLine();
+
+            if(choiceBack=="0")
+            {
+                QString back = "auth:successful:";
+
+                back.append(strList[0]).append(":")
+                    .append(strList[2]).append(":")
+                    .append(strList[3]).append(":")
+                    .append(strList[1]);
+
+                analyzeMessage(back);
+
+                return;
+            }
+            else
+            {
+                qDebug() << "\nPlease enter a valid entry.";
+                goto wrongchoice;
+            }
+        }
+        else
+        {
+            QString operation{"operation:"};  // this is for analyzing message by server
+            operation.append(choice);
+            operation.append(":");
+            operation.append(strList[0]);
+            operation.append(":");
+            operation.append(amount);
+
+            sendMessage(operation);
+        }
+
+
     }
     // transfer money
     else if(choice=="3")
     {
-        start:
-
         qDebug() << "\nPlease enter the 'CUSTOMER NO' of the person to transfer:";
         QString customto = qtin.readLine();
 
         qDebug() << "Please enter the 'USERNAME' of the person to transfer:";
         QString userto = qtin.readLine();
 
-        if(userto==username)
+        if(userto==strList[0])
         {
-            qDebug() << "\n*** Not allowed transfer money to your own account!\n";
-            goto start;
+            qDebug() << "\n>> Not allowed transfer money to your own account!\n"
+                     << "\nPress 0 to go back:";
+
+            start:
+
+            QString choiceT = qtin.readLine();
+
+            if(choiceT=="0")
+            {
+                QString back = "auth:successful:";
+
+                back.append(strList[0]).append(":")
+                    .append(strList[2]).append(":")
+                    .append(strList[3]).append(":")
+                    .append(strList[1]);
+
+                analyzeMessage(back);
+
+                return;
+            }
+            else
+            {
+                qDebug() << "\nPlease enter a valid entry.";
+                goto start;
+            }
+        }
+        else
+        {
+            positiv:
+            qDebug() << "Please enter amount to transfer:";
+            QString amount = qtin.readLine();
+
+            // to compare variables we need to convert to float
+            double amountF = amount.toFloat();
+            double balanceF = strList[1].toFloat();
+
+            if(amountF<=0)
+            {
+                qDebug() << "\n>> Input should be positive.\n";
+                goto positiv;
+            }
+
+
+            if(amountF>balanceF)
+            {
+                qDebug() << "\n>> There is no enough balance.\n"
+                         << "\nPress 0 to go back:";
+
+                transfer:
+
+                QString choiceB = qtin.readLine();
+
+                if(choiceB=="0")
+                {
+                    QString back = "auth:successful:";
+
+                    back.append(strList[0]).append(":")
+                        .append(strList[2]).append(":")
+                        .append(strList[3]).append(":")
+                        .append(strList[1]);
+
+                    analyzeMessage(back);
+
+                    return;
+                }
+                else
+                {
+                    qDebug() << "\nPlease enter a valid entry.";
+                    goto transfer;
+                }
+            }
+            else
+            {
+                QString operation{"operation:"};  // this is for analyzing message by server
+                operation.append(choice);
+                operation.append(":");
+                operation.append(strList[0]);
+                operation.append(":");
+                operation.append(amount);
+                operation.append(":");
+                operation.append(userto);
+                operation.append(":");
+                operation.append(customto);
+                operation.append(":");
+                operation.append(strList[1]);
+
+                sendMessage(operation);
+            }
         }
 
-        transfer:
-
-        qDebug() << "Please enter amount to transfer:";
-        QString amount = qtin.readLine();
-
-        // to compare variables we need to convert to float
-        double amountF = amount.toFloat();
-        double balanceF = balance.toFloat();
-
-        if(amountF>balanceF)
-        {
-            qDebug() << "\n*** There is no enough balance.";
-            qDebug() << "*** Current balance: " << balanceF << "\n";
-            goto transfer;
-        }
-
-        QString operation{"operation:"};  // this is for analyzing message by server
-        operation.append(choice);
-        operation.append(":");
-        operation.append(username);
-        operation.append(":");
-        operation.append(amount);
-        operation.append(":");
-        operation.append(userto);
-        operation.append(":");
-        operation.append(customto);
-        operation.append(":");
-        operation.append(balance);
-
-        sendMessage(operation);
     }
     // sign out
     else if(choice=="4")
     {
-        qDebug() << "\nClient signed out!\n"
-                    "Please login again!\n";
-        login();
+        qDebug() << "\nClient signed out!";
+
+        qDebug() << "\nPress 1 to login again:"
+                 << "\nPress 2 to exit:";
+
+        exited:
+
+        QString choiceL = qtin.readLine();
+
+        if(choiceL=="1")
+        {
+            login();
+        }
+        else if(choiceL=="2")
+        {
+            socket -> close();
+        }
+        else
+        {
+            qDebug() << "\nPlease enter a valid entry.";
+            goto exited;
+        }
+
     }
     // disconnect
     else if(choice=="5")
@@ -244,8 +428,8 @@ void MyTcpClient::operations(QString username, QString balance)
     }
     else
     {
-        qDebug() << "\n*** Please enter a valid entry:\n";
-        goto operation;
+        qDebug() << "\n>> Please enter a valid entry:\n";
+        operations(userData);
     }
 
 }
@@ -256,7 +440,7 @@ void MyTcpClient::discardSocket()
     socket->deleteLater();
     socket=nullptr;
 
-    qDebug() << "\n*** Disconnected!";
+    qDebug() << "\n>> Disconnected from server..";
 }
 
 
@@ -267,13 +451,13 @@ void MyTcpClient::displayError(QAbstractSocket::SocketError socketError)
         case QAbstractSocket::RemoteHostClosedError:
         break;
         case QAbstractSocket::HostNotFoundError:
-            qDebug() << "*** The host was not found.";
+            qDebug() << ">> The host was not found.";
         break;
         case QAbstractSocket::ConnectionRefusedError:
-            qDebug() << "*** The connection was refused.";
+            qDebug() << ">> The connection was refused.";
         break;
         default:
-            qDebug() << "*** The following error occurred: " << socket->errorString();
+            qDebug() << ">> The following error occurred: " << socket->errorString();
         break;
     }
 }
@@ -282,8 +466,6 @@ void MyTcpClient::displayError(QAbstractSocket::SocketError socketError)
 // send message to server
 void MyTcpClient::sendMessage(const QString &str)
 {
-    if(socket)
-    {
         if(socket->isOpen())
         {
             QDataStream socketStream(socket);
@@ -299,10 +481,8 @@ void MyTcpClient::sendMessage(const QString &str)
             socketStream << byteArray;
         }
         else
-            qDebug() << "*** Socket could not be opened!";
-    }
-    else
-        qDebug() << "*** Not connected!";
+            qDebug() << ">> Socket could not be opened!";
+
 }
 
 // login to server
@@ -310,7 +490,7 @@ void MyTcpClient::login()
 {
     if(socket->isOpen())
     {
-        QTextStream qtin(stdin);       
+        QTextStream qtin(stdin);
 
         qDebug() << "Please enter your username:";
         QString username = qtin.readLine();
@@ -318,7 +498,6 @@ void MyTcpClient::login()
         qDebug() << "Please enter your password:";
         QString password = qtin.readLine();
 
-        // concatanation username and password
         // this is for analyzing message by server
         QString userpass{"userpass:"};
         userpass.reserve(userpass.length() + username.length() + password.length());
@@ -331,7 +510,7 @@ void MyTcpClient::login()
     }
     else
     {
-        qDebug() << "*** Socket could not be opened!";
+        qDebug() << ">> Socket could not be opened!";
     }
 }
 

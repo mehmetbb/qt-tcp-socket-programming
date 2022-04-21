@@ -1,7 +1,7 @@
 #include <QCoreApplication>
 #include <mytcpclient.h>
 
-// git control
+
 
 int main(int argc, char *argv[])
 {

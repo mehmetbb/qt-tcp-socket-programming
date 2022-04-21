@@ -9,6 +9,7 @@
 #include <QString>
 #include <QStandardPaths>
 #include <QTcpSocket>
+#include <QTextStream>
 
 class MyTcpClient : public QObject
 {
@@ -21,7 +22,7 @@ public:
 signals:
     void newMessage(QString);
 
-public slots:    
+public slots:
     void readSocket();
     void discardSocket();
     void displayError(QAbstractSocket::SocketError socketError);
@@ -29,7 +30,7 @@ public slots:
     void sendMessage(const QString& str);
     void login();
     void analyzeMessage(QString message);
-    void operations(QString username, QString balance);
+    void operations(QString userData);
 
 private:
     QTcpSocket *socket;
