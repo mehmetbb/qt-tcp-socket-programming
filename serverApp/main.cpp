@@ -1,22 +1,16 @@
 #include <QCoreApplication>
-#include <QFile>
-#include <QString>
-#include <QDebug>
-#include <QTextStream>
 #include "mytcpserver.h"
 
-
-
+QString MyTcpServer::myText;
 
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-
-    // Create server object
     MyTcpServer server;
 
-    // check and read file
+    server.startServer();
+
     server.readFile();
 
     return a.exec();

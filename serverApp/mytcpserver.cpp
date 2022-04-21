@@ -1,474 +1,127 @@
 #include "mytcpserver.h"
-#include <QDebug>
-#include <QFile>
-#include <QString>
-#include <QDebug>
-#include <QTextStream>
+#include "mythread.h"
 
 
-
-// when read file, customer info is writing to 2d array
-// preferred to use static array since there is no user addition
-QString customerList[7][5];
 QString filename;
 
-// Creating object triggers it to Server started
+
 MyTcpServer::MyTcpServer(QObject *parent) :
-    QObject(parent)
+    QTcpServer(parent)
 {
-    m_server = new QTcpServer(this);
-    connect(m_server, SIGNAL(newConnection()), this, SLOT(newConnection()));
 
-    if(m_server->listen(QHostAddress::Any, 9999))
+}
+
+// to start server
+void MyTcpServer::startServer()
+{
+    if(this->listen(QHostAddress::Any,9999))
     {
-        connect(this, &MyTcpServer::newMessage, this, &MyTcpServer::displayMessage);
-        connect(m_server, &QTcpServer::newConnection, this, &MyTcpServer::newConnection);
-        qDebug() << "*** Server started!\n";
+        qDebug() << ">> Server started!\n";
     }
     else
     {
-        qDebug() << "*** Server not started!" << m_server->errorString();
-        exit(EXIT_FAILURE);
+        qDebug() << ">> Could not start server!";
     }
 }
 
-// destructor
-MyTcpServer::~MyTcpServer()
+// thread is created on every incoming connection (multi-threading)
+void MyTcpServer::incomingConnection(qintptr socketDescriptor)
 {
-    foreach (QTcpSocket* socket, connection_set)
-    {
-        socket->close();
-        socket->deleteLater();
-    }
+    qDebug() << socketDescriptor << "-> connecting..";
+    MyThread *thread = new MyThread(socketDescriptor,this);
+    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
 
-    m_server->close();
-    m_server->deleteLater();
-}
-
-// check for new connection
-void MyTcpServer::newConnection()
-{
-    while (m_server->hasPendingConnections())
-        appendToSocketList(m_server->nextPendingConnection());
-}
-
-// display whether client connected
-void MyTcpServer::appendToSocketList(QTcpSocket* socket)
-{
-    connection_set.insert(socket);
-    connect(socket, &QTcpSocket::readyRead, this, &MyTcpServer::readSocket);
-    connect(socket, &QTcpSocket::disconnected, this, &MyTcpServer::discardSocket);
-    connect(socket, &QAbstractSocket::errorOccurred, this, &MyTcpServer::displayError);
-
-    qDebug() << "*** Client connected!";
-}
-
-// The server listens to the channel
-// and catches when new messages arrive
-void MyTcpServer::readSocket()
-{
-    QTcpSocket* socket = reinterpret_cast<QTcpSocket*>(sender());
-
-    QByteArray buffer;
-
-    QDataStream socketStream(socket);
-    socketStream.setVersion(QDataStream::Qt_6_2);
-
-    socketStream.startTransaction();
-    socketStream >> buffer;
-
-    if(!socketStream.commitTransaction())
-    {
-        QString message = "*** Waiting for data..";
-        emit newMessage(message);
-        return;
-    }
-
-    buffer = buffer.mid(128);
-
-    // message: new message
-    QString message = QString::fromStdString(buffer.toStdString());
-
-    //emit newMessage(message);  *for trial*
-
-    // to make the incoming message understandable
-    analyzeMessage(message);
-}
-
-// Analysis mechanism is used to understand
-// messages between server and client.
-void MyTcpServer::analyzeMessage(QString message)
-{
-    // some string operations
-    QStringList data = message.split(":");
-
-    // for login operations
-    if(data[0]=="userpass")
-    {
-        QString user = data[1];
-        QString pass = data[2];
-
-        checkAuthorization(user, pass);
-    }
-    // Add money
-    else if(data[0]=="operation" && data[1]=="1")
-    {
-        for(int i=0;i<7;i++)
-        {
-            if(data[2]==customerList[i][0])
-            {
-                double currentBalance = customerList[i][4].toFloat();
-                double addMoney = data[3].toFloat();
-
-                currentBalance += addMoney;
-
-                customerList[i][4] = QString::number(currentBalance);
-
-                // To display new balance in client side
-                QString successfulOp = "completed:";
-                successfulOp.append(customerList[i][0]);  //username
-                successfulOp.append(":");
-                successfulOp.append(customerList[i][4]);  //current balance
-
-                // applying changes to the file
-                writeFile(successfulOp);
-
-                break;
-            }
-        }
-    }
-    // Withdraw money
-    else if(data[0]=="operation" && data[1]=="2")
-    {
-        for(int i=0;i<7;i++)
-        {
-            if(data[2]==customerList[i][0])
-            {
-                double currentBalance = customerList[i][4].toFloat();
-                double getMoney = data[3].toFloat();
-
-                currentBalance -= getMoney;
-
-                customerList[i][4] = QString::number(currentBalance);
-
-                // To display new balance in client side
-                QString successfulOp = "completed:";
-                successfulOp.append(customerList[i][0]);  //username
-                successfulOp.append(":");
-                successfulOp.append(customerList[i][4]);  //current balance
-
-                // applying changes to the file
-                writeFile(successfulOp);
-
-                break;
-            }
-        }
-    }
-    // Transfer money
-    else if(data[0]=="operation" && data[1]=="3")
-    {
-        bool exist = false;
-        bool falseNo = false;
-
-        // when transfer money we need to control
-        // whether user exist or customer no is true
-        for(int k=0;k<7;k++)
-        {
-            if(data[4]==customerList[k][0])
-            {
-                exist = true;
-
-                if(data[5]!=customerList[k][2])
-                {
-                    foreach (QTcpSocket* socket,connection_set)
-                    {
-                        QString error{"transfererror:wrongnumber:"};
-                        error.append(data[2]);
-                        error.append(":");
-                        error.append(data[6]);
-                        sendMessage(socket, error);
-                    }
-                }
-                else
-                    falseNo = true;
-
-                break;
-            }
-        }
-
-        if(!exist)
-        {
-            foreach (QTcpSocket* socket,connection_set)
-            {
-                QString error{"transfererror:notexist:"};
-                error.append(data[4]);
-                error.append(":");
-                error.append(data[2]);
-                error.append(":");
-                error.append(data[6]);
-                sendMessage(socket, error);
-            }
-        }
-
-        if(exist && falseNo)
-        {
-            QString bankTo;
-            QString bankFrom;
-            QString myBalance;
-            double currentBalance;
-            double addMoney;
-            double getMoney;
-            double bankCut = 6;  // if banks are different
-
-            for(int i=0;i<7;i++)
-            {
-                if(customerList[i][0]==data[4])
-                {
-                    currentBalance = customerList[i][4].toFloat();
-                    addMoney = data[3].toFloat();
-
-                    currentBalance += addMoney;
-
-                    customerList[i][4] = QString::number(currentBalance);
-
-                    bankTo = customerList[i][1];
-
-                }
-                else if(customerList[i][0]==data[2])
-                {
-                    currentBalance = customerList[i][4].toFloat();
-                    getMoney = data[3].toFloat();
-
-                    currentBalance -= getMoney;
-
-                    bankFrom = customerList[i][1];
-
-                    // When banks are different
-                    if(bankFrom!=bankTo)
-                        currentBalance -= bankCut;
-
-                    customerList[i][4] = QString::number(currentBalance);
-
-                    myBalance = customerList[i][4];
-                }
-            }
-
-            // To display new balance in client side
-            QString successfulOp = "completed:";
-            successfulOp.append(data[2]);  //username
-            successfulOp.append(":");
-            successfulOp.append(myBalance);  //current balance
-
-            // applying changes to the file
-            writeFile(successfulOp);
-        }
-
-
-
-    }
-    else
-        qDebug() << "*** FAILED: message could not understand!\n";
+    thread->start();
 }
 
 
 // reading the txt file which containing the data
 void MyTcpServer::readFile()
 {
-    qDebug() << "Data is kept in <customerinfo.txt> file\n"
-                "Please paste the directory where the <customerinfo.txt> file is located:\n"
-                "(Example -> C:\\some_folder\\customerinfo.txt)\n";
-
-    start:
-
+    QDir dir;
     QTextStream qtin(stdin);
-    filename = qtin.readLine();
 
+    filename = dir.currentPath();
+
+    QStringList data = filename.split("/");
+
+    filename = "";
+
+    for(int i=0; i<(data.size()-2); i++)
+    {
+        filename.append(data[i]).append("/");
+    }
+
+    filename.append("customerinfo.txt");
+
+    qDebug() << "Default directory:\n" << filename;
+
+    check:
     QFile file(filename);
-    if(!file.open(QFile::ReadOnly |
-                  QFile::Text))
+
+    if(!file.open(QFile::ReadOnly | QFile::Text))
     {
-        qDebug() << "\n*** File can not found!\n"
-                    "*** Please enter the valid directory:\n";
-        goto start;
+        qDebug() << "\nFile 'customerinfo.txt' can not found in the directory!"
+                 << "\nPlease paste the directory where the 'customerinfo.txt' file is located:\n";
+
+        filename = qtin.readLine();
+
+        goto check;
     }
-
-    QTextStream in(&file);
-    QString myText = in.readAll(); // myText contains all customer info
-    file.close();
-
-    qDebug() << "\nOn the client side, you can use information below.\n"
-                "This template contains all customer info:\n"
-                "-------------------------------------";
-
-    QStringList dataLine = myText.split("\n");
-
-    for(int i = 0; i < dataLine.size(); i++)
+    else
     {
-         QStringList data = dataLine[i].split(":");
+        QTextStream in(&file);
+        myText = in.readAll(); // myText contains all customer info
 
-         qDebug() << "Username:    " << data[0] << "\n"
-                     "Password:    " << data[3] << "\n"
-                     "Customer no: " << data[2] << "\n"
-                     "Bank:        " << data[1] << "\n"
-                     "Balance:     " << data[4] << "\n"
-                     "-------------------------------------";
+        file.close();
 
-         for(int j=0; j<data.size(); j++)
-         {
-             customerList[i][j] = data[j];            
-         }
+
+        qDebug() << "\nOn the client side, you can use information below.\n"
+                    "This template contains all customer info:\n"
+                    "-------------------------------------";
+
+        QStringList dataLine = myText.split("\n");
+
+        for(int i = 0; i < dataLine.size(); i++)
+        {
+             QStringList data = dataLine[i].split(":");
+
+             qDebug() << "Username:    " << data[0] << "\n"
+                         "Password:    " << data[3] << "\n"
+                         "Customer no: " << data[2] << "\n"
+                         "Bank:        " << data[1] << "\n"
+                         "Balance:     " << data[4] << "\n"
+                         "-------------------------------------";
+        }
+
+        qDebug() << "\nOn the client side, you can use information above.\n"
+                    "This template is for ease of use. Changes can be checked on the client side.\n\n"
+                    ">> Data received. Client can be started!";
     }
-
-    qDebug() << "\nOn the client side, you can use information above.\n"
-                "This template is for ease of use. Changes can be checked on the client side.\n\n"
-                "*** Data received. Client can be started!";
 
 }
 
-// applying changes to the file
+
+// applying changes to the file / db
 void MyTcpServer::writeFile(QString message)
 {
-    qDebug() << "*** Writing to db..";
-
-    QString temp = "";
-
-    for(int i=0;i<7;i++)
-    {
-        for(int j=0;j<5;j++)
-        {
-            temp.append(customerList[i][j]);
-
-            if(j!=4)            
-                temp.append(":");
-
-        }
-        if(i!=6)        
-            temp.append("\n");        
-    }
-
-    foreach (QTcpSocket* socket,connection_set)
-    {
-        sendMessage(socket, message);
-    }
-
+    qDebug() << "\n>> Writing to db..";
 
     QFile file(filename);
     // Trying to open in WriteOnly and Text mode
-    if(!file.open(QFile::WriteOnly |
-                  QFile::Text))
+    if(!file.open(QFile::WriteOnly | QFile::Text))
     {
-        qDebug() << "*** Could not open file for writing!";
+        qDebug() << ">> Could not open file for writing!";
         return;
     }
 
     QTextStream out(&file);
-    out << temp;
+    out << message;
     file.flush();
     file.close();
 
-    qDebug() << "*** Completed!";
+    qDebug() << ">> Completed!\n";
+
+    myText = message;
 }
-
-// authorization check
-void MyTcpServer::checkAuthorization(QString user, QString pass)
-{ 
-    bool exist = false;
-    for(int k=0;k<7;k++)
-    {
-        if(user==customerList[k][0] && pass==customerList[k][3])
-        {
-            foreach (QTcpSocket* socket,connection_set)
-            {
-                QString authMessage{"auth:successful"};
-                authMessage.append(":").append(customerList[k][0])
-                           .append(":").append(customerList[k][1])
-                           .append(":").append(customerList[k][2])
-                           .append(":").append(customerList[k][4]);
-
-                qDebug() << "*** Login successful!";
-
-                sendMessage(socket, authMessage);
-            }
-            exist = true;
-            break;
-        }
-    }
-
-        if(!exist)
-        {
-            foreach (QTcpSocket* socket,connection_set)
-            {
-                qDebug() << "*** Login failed!";
-
-                sendMessage(socket, "auth:failed");
-            }
-        }  
-}
-
-// when the connection is lost
-void MyTcpServer::discardSocket()
-{
-    QTcpSocket* socket = reinterpret_cast<QTcpSocket*>(sender());
-    QSet<QTcpSocket*>::iterator it = connection_set.find(socket);
-    if (it != connection_set.end()){
-        qDebug() << "*** Client has left!";
-        connection_set.remove(*it);
-    }
-
-    socket->deleteLater();
-}
-
-// error messages
-void MyTcpServer::displayError(QAbstractSocket::SocketError socketError)
-{
-    switch (socketError) {
-        case QAbstractSocket::RemoteHostClosedError:
-        break;
-        case QAbstractSocket::HostNotFoundError:
-            qDebug() << "*** The host was not found.";
-        break;
-        case QAbstractSocket::ConnectionRefusedError:
-            qDebug() << "*** The connection was refused.";
-        break;
-        default:
-            QTcpSocket* socket = qobject_cast<QTcpSocket*>(sender());
-            qDebug() << "*** The following error occurred: " << socket->errorString();
-        break;
-    }
-}
-
-
-// send message to client
-void MyTcpServer::sendMessage(QTcpSocket* socket, QString message)
-{
-    if(socket)
-    {
-        if(socket->isOpen())
-        {
-            QDataStream socketStream(socket);
-            socketStream.setVersion(QDataStream::Qt_6_2);
-
-            QByteArray header;
-            header.prepend(QString("fileType:message,fileName:null,fileSize:%1;").arg(message.size()).toUtf8());
-            header.resize(128);
-
-            QByteArray byteArray = message.toUtf8();
-            byteArray.prepend(header);
-
-            socketStream.setVersion(QDataStream::Qt_6_2);
-            socketStream << byteArray;
-        }
-        else
-            qDebug() << "*** Socket could not be opened";
-    }
-    else
-        qDebug() << "*** Not connected";
-}
-
-
-void MyTcpServer::displayMessage(QString str)
-{
-    qDebug() << str;
-}
-
 
