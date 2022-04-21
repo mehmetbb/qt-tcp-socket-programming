@@ -218,9 +218,18 @@ void MyTcpClient::operations(QString userData)
     // add money
     if(choice=="1")
     {
+        posit:
         qDebug() << "\nPlease enter amount to deposit:";
 
         QString amount = qtin.readLine();
+
+        double amountFl = amount.toFloat();
+
+        if(amountFl<=0)
+        {
+            qDebug() << "\n>> Input should be positive.";
+            goto posit;
+        }
 
         QString operation{"operation:"};  // this is for analyzing message by server
         operation.append(choice);
