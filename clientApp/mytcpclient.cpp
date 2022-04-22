@@ -19,7 +19,7 @@ MyTcpClient::MyTcpClient(QObject *parent) :
         // If client connected to server this message appears
         qDebug() << "---------------------------\n"
                     "|| WELCOME TO THE PORTAL ||\n"
-                    "---------------------------\n";
+                    "---------------------------";
     }
     else
     {
@@ -107,49 +107,94 @@ void MyTcpClient::analyzeMessage(QString message)
     {
         if(data[1]=="notexist")
         {
-            qDebug() << "\n>> User" << data[6] << "does not exist!\n";
+            QString choice = "";
 
-            notexist:
-            qDebug() << "Press 0 to go back:";
+            qDebug() << "\n>> User" << data[6] << "does not exist!";
 
-            QString choice = qtin.readLine();
-
-            if(choice=="0")
+            while(choice!="0")
             {
-                QString back = "auth:successful:";
+                qDebug() << "\nPress 0 to go back:";
 
-                back.append(data[2]).append(":")  // username
-                    .append(data[3]).append(":")  // bank
-                    .append(data[4]).append(":")  // customer no
-                    .append(data[5]);             // balance
+                choice = qtin.readLine();
 
-                analyzeMessage(back);
+                if(choice=="0")
+                {
+                    QString back = "auth:successful:";
 
-                return;
-            }
-            else
-            {
-                qDebug() << "\nPlease enter a valid entry.";
-                goto notexist;
+                    back.append(data[2]).append(":")  // username
+                        .append(data[3]).append(":")  // bank
+                        .append(data[4]).append(":")  // customer no
+                        .append(data[5]);             // balance
+
+                    analyzeMessage(back);
+
+                    break;
+                }
+                else
+                {
+                    qDebug() << "\nPlease enter a valid entry.";
+                }
             }
 
         }
         else if(data[1]=="wrongnumber")
         {
-            qDebug() << "\n>> There is a mismatch in the customer name and number!\n";
-            wrongnum:
-            qDebug() << "Press 0 to go back:";
+            QString choice = "";
 
-            QString choice = qtin.readLine();
+            qDebug() << "\n>> There is a mismatch in the customer name and number!";
+
+            while(choice!="0")
+            {
+                qDebug() << "\nPress 0 to go back:";
+
+                choice = qtin.readLine();
+
+                if(choice=="0")
+                {
+                    QString back = "auth:successful:";
+
+                    back.append(data[2]).append(":")  // username
+                        .append(data[3]).append(":")  // bank
+                        .append(data[4]).append(":")  // customer no
+                        .append(data[5]);             // balance
+
+                    analyzeMessage(back);
+
+                    break;
+                }
+                else
+                {
+                    qDebug() << "\nPlease enter a valid entry.";
+                }
+            }
+
+        }
+    }
+    // operation successful message
+    else if(data[0]=="completed")
+    {
+        QString choice = "";
+
+        qDebug() << "\n>> Operation successful!";
+
+        if(dataSize==6)
+            qDebug() << "\n>> 6 TL deduction fee is charged between different banks.";
+
+
+        while(choice!="0")
+        {
+            qDebug() << "\nPress 0 to go back:";
+
+            choice = qtin.readLine();
 
             if(choice=="0")
             {
                 QString back = "auth:successful:";
 
-                back.append(data[2]).append(":")  // username
-                    .append(data[3]).append(":")  // bank
-                    .append(data[4]).append(":")  // customer no
-                    .append(data[5]);             // balance
+                back.append(data[1]).append(":")
+                    .append(data[2]).append(":")
+                    .append(data[3]).append(":")
+                    .append(data[4]);
 
                 analyzeMessage(back);
 
@@ -158,41 +203,9 @@ void MyTcpClient::analyzeMessage(QString message)
             else
             {
                 qDebug() << "\nPlease enter a valid entry.";
-                goto wrongnum;
             }
         }
-    }
-    // operation successful message
-    else if(data[0]=="completed")
-    {
-        qDebug() << "\n>> Operation successful!";
 
-        if(dataSize==6)
-            qDebug() << "\n>> 6 TL deduction fee is charged between different banks.";
-
-        goback:
-        qDebug() << "\nPress 0 to go back:";
-
-        QString choice = qtin.readLine();
-
-        if(choice=="0")
-        {
-            QString back = "auth:successful:";
-
-            back.append(data[1]).append(":")
-                .append(data[2]).append(":")
-                .append(data[3]).append(":")
-                .append(data[4]);
-
-            analyzeMessage(back);
-
-            return;
-        }
-        else
-        {
-            qDebug() << "\nPlease enter a valid entry.";
-            goto goback;
-        }
     }
     else
         qDebug() << ">> FAILED: message error! Please restart the application.\n";
@@ -218,18 +231,21 @@ void MyTcpClient::operations(QString userData)
     // add money
     if(choice=="1")
     {
-        posit:
-        qDebug() << "\nPlease enter amount to deposit:";
+        QString amount;
+        double amountFl = 0;
 
-        QString amount = qtin.readLine();
+        // negativity check
+        do{
+            qDebug() << "\nPlease enter amount to deposit:";
 
-        double amountFl = amount.toFloat();
+            amount = qtin.readLine();
+            amountFl = amount.toFloat();
 
-        if(amountFl<=0)
-        {
-            qDebug() << "\n>> Input should be positive.";
-            goto posit;
-        }
+            if(amountFl<=0)
+                qDebug() << "\n>> Input should be positive.";
+
+        }while(amountFl<=0);
+
 
         QString operation{"operation:"};  // this is for analyzing message by server
         operation.append(choice);
@@ -243,49 +259,54 @@ void MyTcpClient::operations(QString userData)
     // withdraw money
     else if(choice=="2")
     {
-        positive:
-
-        qDebug() << "\nPlease enter amount to withdraw:";
-
-        QString amount = qtin.readLine();
-
-        double amountF = amount.toFloat();
+        QString amount;
+        double amountF = 0;
         double balanceF = strList[1].toFloat();
 
+        // negativity check
+        do{
+            qDebug() << "\nPlease enter amount to withdraw:";
 
-        if(amountF<=0)
-        {
-            qDebug() << "\n>> Input should be positive.";
-            goto positive;
-        }
+            amount = qtin.readLine();
+            amountF = amount.toFloat();
 
+            if(amountF<=0)
+                qDebug() << "\n>> Input should be positive.";
 
+        }while(amountF<=0);
+
+        // over balance check
         if(amountF>balanceF)
         {
-            qDebug() << "\n>> There is no enough balance."
-                     << "\nPress 0 to go back:";
+            QString choiceBack = "";
 
-            wrongchoice:
-            QString choiceBack = qtin.readLine();
+            qDebug() << "\n>> There is no enough balance.";
 
-            if(choiceBack=="0")
+            while(choiceBack!="0")
             {
-                QString back = "auth:successful:";
+                qDebug() << "\nPress 0 to go back:";
 
-                back.append(strList[0]).append(":")
-                    .append(strList[2]).append(":")
-                    .append(strList[3]).append(":")
-                    .append(strList[1]);
+                choiceBack = qtin.readLine();
 
-                analyzeMessage(back);
+                if(choiceBack=="0")
+                {
+                    QString back = "auth:successful:";
 
-                return;
+                    back.append(strList[0]).append(":")
+                        .append(strList[2]).append(":")
+                        .append(strList[3]).append(":")
+                        .append(strList[1]);
+
+                    analyzeMessage(back);
+
+                    break;
+                }
+                else
+                {
+                    qDebug() << "\nPlease enter a valid entry.";
+                }
             }
-            else
-            {
-                qDebug() << "\nPlease enter a valid entry.";
-                goto wrongchoice;
-            }
+
         }
         else
         {
@@ -310,61 +331,20 @@ void MyTcpClient::operations(QString userData)
         qDebug() << "Please enter the 'USERNAME' of the person to transfer:";
         QString userto = qtin.readLine();
 
+        // own account check
         if(userto==strList[0])
         {
-            qDebug() << "\n>> Not allowed transfer money to your own account!\n"
-                     << "\nPress 0 to go back:";
+            QString choiceT = "";
 
-            start:
+            qDebug() << "\n>> Not allowed transfer to your own account!";
 
-            QString choiceT = qtin.readLine();
-
-            if(choiceT=="0")
+            while(choiceT!="0")
             {
-                QString back = "auth:successful:";
+                qDebug() << "\nPress 0 to go back:";
 
-                back.append(strList[0]).append(":")
-                    .append(strList[2]).append(":")
-                    .append(strList[3]).append(":")
-                    .append(strList[1]);
+                choiceT = qtin.readLine();
 
-                analyzeMessage(back);
-
-                return;
-            }
-            else
-            {
-                qDebug() << "\nPlease enter a valid entry.";
-                goto start;
-            }
-        }
-        else
-        {
-            positiv:
-            qDebug() << "Please enter amount to transfer:";
-            QString amount = qtin.readLine();
-
-            // to compare variables we need to convert to float
-            double amountF = amount.toFloat();
-            double balanceF = strList[1].toFloat();
-
-            if(amountF<=0)
-            {
-                qDebug() << "\n>> Input should be positive.\n";
-                goto positiv;
-            }
-
-
-            if(amountF>balanceF)
-            {
-                qDebug() << "\n>> There is no enough balance.\n"
-                         << "\nPress 0 to go back:";
-
-                transfer:
-
-                QString choiceB = qtin.readLine();
-
-                if(choiceB=="0")
+                if(choiceT=="0")
                 {
                     QString back = "auth:successful:";
 
@@ -375,13 +355,66 @@ void MyTcpClient::operations(QString userData)
 
                     analyzeMessage(back);
 
-                    return;
+                    break;
                 }
                 else
                 {
                     qDebug() << "\nPlease enter a valid entry.";
-                    goto transfer;
                 }
+            }
+
+        }
+        else
+        {
+            QString amount;
+            double amountF = 0;
+            double balanceF = strList[1].toFloat();
+
+            // negativity check
+            do{
+                qDebug() << "Please enter amount to transfer:";
+
+                amount = qtin.readLine();
+                amountF = amount.toFloat();
+
+                if(amountF<=0)
+                    qDebug() << "\n>> Input should be positive.\n";
+
+            }while(amountF<=0);
+
+
+            // over balance check
+            if(amountF>balanceF)
+            {
+                QString choiceB = "";
+
+                qDebug() << "\n>> There is no enough balance.";
+
+                while(choiceB!="0")
+                {
+                    qDebug() << "\nPress 0 to go back:";
+
+                    choiceB = qtin.readLine();
+
+                    if(choiceB=="0")
+                    {
+                        QString back = "auth:successful:";
+
+                        back.append(strList[0]).append(":")
+                            .append(strList[2]).append(":")
+                            .append(strList[3]).append(":")
+                            .append(strList[1]);
+
+                        analyzeMessage(back);
+
+                        break;
+                    }
+                    else
+                    {
+                        qDebug() << "\nPlease enter a valid entry.";
+                    }
+                }
+
             }
             else
             {
@@ -406,27 +439,32 @@ void MyTcpClient::operations(QString userData)
     // sign out
     else if(choice=="4")
     {
+        QString choiceL = "";
+
         qDebug() << "\nClient signed out!";
 
         qDebug() << "\nPress 1 to login again:"
                  << "\nPress 2 to exit:";
 
-        exited:
 
-        QString choiceL = qtin.readLine();
+        while(choiceL!="1" || choiceL!="2")
+        {
+            choiceL = qtin.readLine();
 
-        if(choiceL=="1")
-        {
-            login();
-        }
-        else if(choiceL=="2")
-        {
-            socket -> close();
-        }
-        else
-        {
-            qDebug() << "\nPlease enter a valid entry.";
-            goto exited;
+            if(choiceL=="1")
+            {
+                login();
+                break;
+            }
+            else if(choiceL=="2")
+            {
+                socket -> close();
+                break;
+            }
+            else
+            {
+                qDebug() << "\nPlease enter a valid entry.";
+            }
         }
 
     }
@@ -501,7 +539,7 @@ void MyTcpClient::login()
     {
         QTextStream qtin(stdin);
 
-        qDebug() << "Please enter your username:";
+        qDebug() << "\nPlease enter your username:";
         QString username = qtin.readLine();
 
         qDebug() << "Please enter your password:";
